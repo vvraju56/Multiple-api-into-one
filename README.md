@@ -1,15 +1,15 @@
-# AI API Server
+# AI API Gateway
 
-A production-ready ChatGPT-like API server built with FastAPI, supporting Groq LLM models and local CPU fallback. Features automatic weekly API key rotation. Deployable on Render FREE tier.
+A production-ready FastAPI server that securely proxies to Groq's Llama-3 API with automatic weekly key rotation. Deployable on Render FREE tier.
 
 ## Features
 
-- **Groq LLM Integration**: Uses Llama-3 70B model through secure backend proxy
+- **Groq API Proxy**: Secure proxy to Llama-3 70B model
 - **Automatic API Key Rotation**: Generates new key every 7 days, only one valid key at a time
-- **Local CPU Fallback**: TinyLlama model for offline use
-- **Security**: Never exposes API keys to users
+- **Security**: Never exposes Groq API key to users
 - **FastAPI**: High-performance async API
 - **Render Deployment**: Optimized for free tier
+- **Zero Heavy Dependencies**: No torch, transformers, or Rust packages
 
 ## Tech Stack
 
@@ -17,8 +17,7 @@ A production-ready ChatGPT-like API server built with FastAPI, supporting Groq L
 - FastAPI
 - Uvicorn
 - Requests
-- Transformers
-- Torch (CPU)
+- Pydantic
 
 ## Setup
 
@@ -37,24 +36,48 @@ uvicorn main:app --reload
 
 ## Render Deployment
 
-1. Create a new Web Service on Render
+### Web Service Configuration
+
+1. Create a new **Web Service** on Render
 2. Connect your GitHub repository
-3. Set build command: `pip install -r requirements.txt`
-4. Set start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. Add environment variables:
-   - `GROQ_API_KEY`
-   - `ADMIN_SECRET`
-6. Deploy!
+3. **Runtime**: Python 3
+4. **Build Command**: `pip install -r requirements.txt`
+5. **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+6. **Environment Variables**:
+   - `GROQ_API_KEY`: `your_groq_api_key_here`
+   - `ADMIN_SECRET`: `your_admin_secret_here`
+7. Click **Deploy**
+
+### Important Render Settings
+
+- **Instance Type**: Free (CPU)
+- **Health Check Path**: `/health`
+- **Auto-Deploy**: Enabled (for updates)
 
 ## Weekly API Key Rotation
 
-The server automatically generates a new API key every 7 days on startup. Only the most recent key is valid. Expired keys are rejected with HTTP 401.
+The server automatically generates a new API key every 7 days using a deterministic algorithm based on the current week number.
 
-- Keys are stored in `current_key.json`
-- Format: `sk-xxxxxxxxxxxxxxxx`
-- No cron jobs required - rotation happens on server boot
+### How It Works
+
+- Keys are generated from: `year-week + admin_secret` hash
+- Only the current week's key is valid
+- Previous week's keys automatically expire
+- No cron jobs required - rotation happens automatically
+- Keys are stored in `current_key.json` for persistence
+
+### Key Format
+
+```
+sk-xxxxxxxxxxxxxxxx (16 characters)
+```
 
 ## API Endpoints
+
+### Health Check
+```bash
+curl https://your-render-app.onrender.com/health
+```
 
 ### View Current API Key (Admin Only)
 ```bash
@@ -65,25 +88,39 @@ curl -X GET https://your-render-app.onrender.com/current-key \
 Response:
 ```json
 {
-  "api_key": "sk-xxxxxxxxxxxxxxxx",
-  "expiry": "2024-01-15T10:30:00"
+  "api_key": "sk-1a2b3c4d5e6f7g8h",
+  "expiry": "2024-01-15T10:30:00",
+  "days_remaining": 6
 }
 ```
 
-### Chat with Groq
+### Chat with Groq (Form Data)
 ```bash
 curl -X POST https://your-render-app.onrender.com/chat \
-  -H "x-api-key: sk-xxxxxxxxxxxxxxxx" \
+  -H "x-api-key: sk-1a2b3c4d5e6f7g8h" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "prompt=Hello, how are you?"
+```
+
+### Chat with Groq (JSON)
+```bash
+curl -X POST https://your-render-app.onrender.com/chat/json \
+  -H "x-api-key: sk-1a2b3c4d5e6f7g8h" \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Hello, how are you?"}'
 ```
 
-### Chat with Local Model
-```bash
-curl -X POST https://your-render-app.onrender.com/local-chat \
-  -H "x-api-key: sk-xxxxxxxxxxxxxxxx" \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Hello, how are you?"}'
+Response:
+```json
+{
+  "response": "Hello! I'm doing well, thank you for asking...",
+  "model": "llama3-70b-8192",
+  "usage": {
+    "prompt_tokens": 15,
+    "completion_tokens": 25,
+    "total_tokens": 40
+  }
+}
 ```
 
 ## CLI Client Example
@@ -97,102 +134,137 @@ API_URL = "https://your-render-app.onrender.com"
 ADMIN_SECRET = "your_admin_secret"
 
 def get_current_key():
+    """Get the current weekly API key"""
     response = requests.get(
         f"{API_URL}/current-key",
         headers={"admin-secret": ADMIN_SECRET}
     )
+    response.raise_for_status()
     return response.json()["api_key"]
 
 def chat(prompt, api_key):
+    """Send a chat request"""
     response = requests.post(
-        f"{API_URL}/chat",
-        headers={"x-api-key": api_key, "Content-Type": "application/json"},
+        f"{API_URL}/chat/json",
+        headers={
+            "x-api-key": api_key,
+            "Content-Type": "application/json"
+        },
         json={"prompt": prompt}
     )
+    response.raise_for_status()
     data = response.json()
-    return data["choices"][0]["message"]["content"]
+    return data["response"]
 
-# Usage
-api_key = get_current_key()
-print(chat("Tell me a joke", api_key))
+# Usage example
+if __name__ == "__main__":
+    try:
+        api_key = get_current_key()
+        print(f"Current API key: {api_key}")
+        
+        response = chat("Tell me a joke", api_key)
+        print(f"AI Response: {response}")
+        
+    except requests.RequestException as e:
+        print(f"Error: {e}")
 ```
 
-## Performance Notes
+## Continue.dev Integration (VS Code Copilot Alternative)
 
-### Render Free Limitations
-- 750 hours/month
-- 512 MB RAM
-- No persistent storage (keys stored in JSON file)
-- CPU-only inference for local models
-
-### Why Groq Proxy is Preferred for Speed
-- Groq provides optimized inference on their hardware
-- No local computation overhead
-- Low latency for API calls
-- Scales better than local CPU
-
-### Why Local CPU Models are Slow
-- CPU inference is computationally expensive
-- TinyLlama requires significant RAM and processing power
-- Best for fallback when Groq is unavailable
-- May cause timeouts on Render free tier
-
-## Integration Examples
-
-### Continue.dev (VS Code Copilot Alternative)
-
-Add to your Continue.dev config:
+Add to your Continue.dev config (`~/.continue/config.json`):
 
 ```json
 {
   "models": [
     {
-      "title": "My AI API",
+      "title": "My AI Gateway",
       "provider": "openai",
       "model": "gpt-3.5-turbo",
-      "apiKey": "sk-xxxxxxxxxxxxxxxx",
+      "apiKey": "sk-1a2b3c4d5e6f7g8h",
       "apiBase": "https://your-render-app.onrender.com"
     }
   ]
 }
 ```
 
-Note: Update the apiKey with your current weekly key from `/current-key` endpoint.
+**Important**: Update the `apiKey` weekly by calling the `/current-key` endpoint.
 
-### Simple Terminal Chat Client
+## Security Features
 
+- ✅ Groq API key stored securely in environment variables
+- ✅ Admin secret required for viewing current key
+- ✅ Automatic weekly key rotation
+- ✅ Only one valid API key at a time
+- ✅ Invalid or expired keys rejected with HTTP 401
+- ✅ No sensitive data exposed in responses
+- ✅ Health check endpoint for monitoring
+- ✅ Request timeouts to prevent hanging
+
+## Performance & Reliability
+
+### Render Free Tier Optimizations
+
+- **Memory Usage**: < 100MB (well under 512MB limit)
+- **Startup Time**: < 10 seconds
+- **Request Handling**: Async with proper timeouts
+- **Error Handling**: Comprehensive error responses
+- **Persistence**: JSON file for key storage
+
+### Why This Works on Render Free
+
+1. **No Heavy Dependencies**: Avoids torch, transformers, Rust packages
+2. **CPU Only**: No GPU requirements
+3. **Fast Startup**: No model loading delays
+4. **Low Memory**: Minimal resource footprint
+5. **Persistent Storage**: Uses file system for key storage
+
+## Troubleshooting
+
+### Common Issues
+
+**401 Unauthorized**: 
+- Check your API key is current (call `/current-key`)
+- Verify the `x-api-key` header is set correctly
+
+**403 Forbidden**:
+- Check your `admin-secret` header for `/current-key` endpoint
+
+**500 Server Error**:
+- Verify `GROQ_API_KEY` environment variable is set
+- Check Groq API status
+
+**Deployment Issues**:
+- Ensure all environment variables are set on Render
+- Check build logs for dependency installation errors
+
+### Debug Mode
+
+Add these environment variables for debugging:
 ```bash
-#!/bin/bash
-
-API_URL="https://your-render-app.onrender.com"
-ADMIN_SECRET="your_admin_secret"
-
-# Get current API key
-API_KEY=$(curl -s -X GET "$API_URL/current-key" -H "admin-secret: $ADMIN_SECRET" | jq -r '.api_key')
-
-echo "AI Chat Client. Type 'quit' to exit."
-while true; do
-    read -p "You: " prompt
-    if [ "$prompt" = "quit" ]; then
-        break
-    fi
-    response=$(curl -s -X POST "$API_URL/chat" \
-        -H "x-api-key: $API_KEY" \
-        -H "Content-Type: application/json" \
-        -d "{\"prompt\": \"$prompt\"}")
-    echo "AI: $(echo $response | jq -r '.choices[0].message.content')"
-done
+LOG_LEVEL=debug
+DEBUG=true
 ```
 
-## Security
+## Monitoring
 
-- Groq API key stored securely in environment variables
-- Admin secret required for viewing current key
-- Automatic weekly key rotation
-- Only one valid API key at a time
-- Invalid or expired keys rejected with HTTP 401
-- No sensitive data exposed in responses
+### Health Check
+
+The `/health` endpoint returns:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-10T15:30:00"
+}
+```
+
+Use this for Render's health checks and monitoring.
+
+### Rate Limits
+
+- No built-in rate limiting (Render handles this)
+- Groq API has its own rate limits
+- Consider implementing rate limiting for production use
 
 ## License
 
-MIT
+MIT License - feel free to use and modify.
