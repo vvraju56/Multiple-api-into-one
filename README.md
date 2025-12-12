@@ -33,6 +33,30 @@ A modern, responsive web tool for combining multiple API keys into a single enco
    open public/index.html
    ```
 
+### 🌐 Deployment Options
+
+Deploy your project to any static hosting platform:
+
+#### Netlify (Recommended)
+- Drag and drop the `public` folder to [netlify.com](https://netlify.com)
+- Or connect your GitHub repository for automatic deployments
+
+#### GitHub Pages
+1. Go to your repository Settings → Pages
+2. Select source: Deploy from a branch
+3. Choose branch: `master` and folder: `/root`
+4. Your site will be live at `https://username.github.io/repo-name/`
+
+#### Vercel
+1. Import your repository at [vercel.com](https://vercel.com)
+2. Configure build settings: `Output Directory: public`
+3. Deploy automatically
+
+#### Other Options
+- **Surge.sh**: `npx surge public`
+- **Firebase Hosting**: Use Firebase CLI
+- **AWS S3**: Upload `public` folder to S3 with static website hosting
+
 ## 📁 Project Structure
 
 ```
