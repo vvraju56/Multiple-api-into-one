@@ -33,35 +33,6 @@ A modern, responsive web tool for combining multiple API keys into a single enco
    open public/index.html
    ```
 
-### Vercel Deployment
-
-#### Method 1: One-Click Deploy (Recommended)
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vvraju56/Multiple-api-into-one.git)
-
-#### Method 2: Manual Deployment
-
-1. **Install Vercel CLI**:
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Login to Vercel**:
-   ```bash
-   vercel login
-   ```
-
-3. **Deploy from project directory**:
-   ```bash
-   vercel --prod
-   ```
-
-#### Method 3: GitHub Integration
-
-1. Push your code to GitHub
-2. Connect your GitHub account to Vercel
-3. Import the repository and deploy automatically
-
 ## 📁 Project Structure
 
 ```
@@ -70,8 +41,6 @@ Multiple-api-into-one/
 │   ├── index.html          # Main HTML file
 │   ├── style.css           # Styles and animations
 │   └── script.js           # JavaScript functionality
-├── vercel.json             # Vercel configuration
-├── .env.example            # Environment variables template
 └── README.md               # This file
 ```
 
@@ -118,26 +87,6 @@ SINGLE_KEY=xyz789
 - **Dark Theme**: Easy on the eyes with gradient backgrounds
 - **Accessibility**: Proper focus states and keyboard navigation
 
-## 🌐 Live Demo
-
-Check out the live demo: [https://your-vercel-app.vercel.app](https://your-vercel-app.vercel.app)
-
-## 🔧 Configuration
-
-### Vercel Environment Variables (Optional)
-
-If you need environment variables, add them in your Vercel dashboard:
-
-1. Go to your Vercel project dashboard
-2. Navigate to Settings → Environment Variables
-3. Add your variables (copy from `.env.example`)
-
-### Custom Domain
-
-1. In Vercel dashboard, go to Project Settings → Domains
-2. Add your custom domain
-3. Update DNS records as instructed by Vercel
-
 ## 📱 Browser Support
 
 - Chrome 60+
@@ -155,7 +104,7 @@ If you need environment variables, add them in your Vercel dashboard:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ## 🔗 Links
 
