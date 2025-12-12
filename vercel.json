@@ -1,4 +1,9 @@
 {
   "version": 2,
-  "outputDirectory": "public"
+  "outputDirectory": "public",
+  "installCommand": "echo 'No dependencies to install'",
+  "buildCommand": "echo 'No build step required'",
+  "framework": null,
+  "cleanUrls": true,
+  "trailingSlash": false
 }
